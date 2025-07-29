@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import sqlite3
+from datetime import datetime
 
 class CallCog(commands.Cog):
     """Manage call wait time posts."""
@@ -72,6 +73,22 @@ class CallCog(commands.Cog):
             )
         await interaction.response.send_message(
             "Your call has been posted.", ephemeral=True
+        )
+
+    @app_commands.command(name="avg", description="Show today's average wait time")
+    async def avg(self, interaction: discord.Interaction):
+        """Calculate average wait time for calls today."""
+        cur = self.conn.execute(
+            "SELECT AVG(minutes) FROM calls WHERE guild_id = ? AND date(timestamp) = date('now')",
+            (interaction.guild.id,),
+        )
+        row = cur.fetchone()
+        if row and row[0] is not None:
+            avg_minutes = f"{row[0]:.2f} minute(s)"
+        else:
+            avg_minutes = "No calls recorded today."
+        await interaction.response.send_message(
+            f"Average wait time today: {avg_minutes}", ephemeral=True
         )
 
 async def setup(bot: commands.Bot):
