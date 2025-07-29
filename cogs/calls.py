@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 import sqlite3
 
@@ -25,6 +25,13 @@ class CallCog(commands.Cog):
                )"""
         )
         self.conn.commit()
+
+        # start the periodic task after bot is ready
+        self.call_summary.start()
+
+    def cog_unload(self):
+        # ensure the task is cancelled when the cog is unloaded
+        self.call_summary.cancel()
 
     @app_commands.command(name="channel", description="Set the channel for call posts")
     @app_commands.checks.has_permissions(administrator=True)
@@ -73,6 +80,36 @@ class CallCog(commands.Cog):
         await interaction.response.send_message(
             "Your call has been posted.", ephemeral=True
         )
+
+    @tasks.loop(minutes=30)
+    async def call_summary(self):
+        """Post the estimated wait time between calls for each guild."""
+        # get list of configured channels
+        cur = self.conn.execute("SELECT guild_id, channel_id FROM channel")
+        channels = cur.fetchall()
+        for guild_id, channel_id in channels:
+            # compute average minutes for calls from today (local time)
+            avg_cur = self.conn.execute(
+                "SELECT AVG(minutes) FROM calls WHERE guild_id = ? AND date(timestamp) = date('now','localtime')",
+                (guild_id,),
+            )
+            avg_row = avg_cur.fetchone()
+            if not avg_row or avg_row[0] is None:
+                continue
+            average = float(avg_row[0])
+            guild = self.bot.get_guild(guild_id)
+            if not guild:
+                continue
+            channel = guild.get_channel(channel_id)
+            if not channel:
+                continue
+            await channel.send(
+                f"Estimated wait time between calls today: {average:.2f} minute(s)."
+            )
+
+    @call_summary.before_loop
+    async def before_summary(self):
+        await self.bot.wait_until_ready()
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(CallCog(bot))
