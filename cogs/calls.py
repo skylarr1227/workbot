@@ -2,7 +2,9 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import sqlite3
+
 from datetime import datetime
+
 
 class CallCog(commands.Cog):
     """Manage call wait time posts."""
@@ -74,6 +76,7 @@ class CallCog(commands.Cog):
         await interaction.response.send_message(
             "Your call has been posted.", ephemeral=True
         )
+
 
     @app_commands.command(name="avg", description="Show today's average wait time")
     async def avg(self, interaction: discord.Interaction):
