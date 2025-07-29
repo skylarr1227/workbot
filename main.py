@@ -13,7 +13,9 @@ intents.members = True
 class WorkBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            command_prefix="!", intents=intents, application_id=int(os.getenv("APP_ID"))
+            command_prefix="!",
+            intents=intents,
+            application_id=int(os.getenv("APP_ID")),
         )
         self.synced = False
 
@@ -34,7 +36,7 @@ class WorkBot(commands.Bot):
             self.synced = True
         print(f"Logged in as {self.user} (ID: {self.user.id})")
 
-bot = MyBot()
+bot = WorkBot()
 
 @bot.command()
 async def ping(ctx):
