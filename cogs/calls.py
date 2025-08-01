@@ -26,6 +26,9 @@ class CallCog(commands.Cog):
         )
         self.conn.commit()
 
+        # store summary message ids per guild so we can edit them
+        self.summary_messages = {}
+
         # start the periodic task after bot is ready
         self.call_summary.start()
 
@@ -103,9 +106,32 @@ class CallCog(commands.Cog):
             channel = guild.get_channel(channel_id)
             if not channel:
                 continue
-            await channel.send(
-                f"Estimated wait time between calls today: {average:.2f} minute(s)."
+
+            # build the embed with a timestamp
+            ts = int(discord.utils.utcnow().timestamp())
+            embed = discord.Embed(
+                title="Estimated Wait Time",
+                description=(
+                    f"Estimated wait time between calls today: {average:.2f} minute(s).\n"
+                    f"Last updated: <t:{ts}:f>"
+                ),
+                color=discord.Color.blue(),
+                timestamp=discord.utils.utcnow(),
             )
+
+            msg_id = self.summary_messages.get(guild_id)
+            message = None
+            if msg_id:
+                try:
+                    message = await channel.fetch_message(msg_id)
+                except discord.NotFound:
+                    message = None
+
+            if message:
+                await message.edit(embed=embed)
+            else:
+                sent = await channel.send(embed=embed)
+                self.summary_messages[guild_id] = sent.id
 
     @call_summary.before_loop
     async def before_summary(self):
